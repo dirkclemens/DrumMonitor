@@ -99,14 +99,15 @@ struct TimingSyncView: View {
             
             // Control Buttons
             HStack(spacing: 10) {
-                Button(action: toggleListening) {
-                    Text(isListening ? "Stop" : "Start")
+                Button(action: {}) {
+                    Text(isListening ? "Listening" : "Waiting")
                         .font(.caption)
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 25)
-                        .background(isListening ? .red : .green)
+                        .frame(width: 60, height: 25)
+                        .background(isListening ? .green : .gray)
                         .cornerRadius(5)
                 }
+                .disabled(true)
                 
                 Button(action: reset) {
                     Text("Reset")
@@ -134,6 +135,15 @@ struct TimingSyncView: View {
                 recordMidiMessage()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .metronomeStartNotification)) { _ in
+            print("TimingSyncView: Metronome started, enabling listening")
+            isListening = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .metronomeStopNotification)) { _ in
+            print("TimingSyncView: Metronome stopped, disabling listening")
+            isListening = false
+            reset()
+        }
     }
     
     private var deviationColor: Color {
@@ -147,12 +157,7 @@ struct TimingSyncView: View {
         }
     }
     
-    private func toggleListening() {
-        isListening.toggle()
-        if !isListening {
-            reset()
-        }
-    }
+
     
     private func reset() {
         metronomeBeats.removeAll()

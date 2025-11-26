@@ -40,19 +40,22 @@ struct ContentView: View {
             .background(Color.gray.opacity(0.1))
             .cornerRadius(10)
 
-            Spacer()
+            if midiManager.isConnected {
+                
+                Spacer()
+                
+                // Metronome
+                MetronomeView()
             
-            // Metronome
-            MetronomeView()
-            
-            Spacer()
+                Spacer()
 
-            // Timing Sync
-            TimingSyncView()
-            
-            Spacer()
-            
-            VelocityView()
+                // Timing Sync
+                TimingSyncView()
+                
+                Spacer()
+                
+                VelocityView()
+            }
             
             Spacer()
         }

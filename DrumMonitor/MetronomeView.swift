@@ -107,6 +107,8 @@ struct MetronomeView: View {
             currentBeat += 1
             playTick()
         }
+        
+        NotificationCenter.default.post(name: .metronomeStartNotification, object: nil)
     }
     
     private func stopMetronome() {
@@ -114,6 +116,8 @@ struct MetronomeView: View {
         timer?.invalidate()
         timer = nil
         currentBeat = 0
+        
+        NotificationCenter.default.post(name: .metronomeStopNotification, object: nil)
     }
     
     private func restartMetronome() {
@@ -159,6 +163,8 @@ struct MetronomeView: View {
 // Notification extensions
 extension Notification.Name {
     static let metronomeTickNotification = Notification.Name("metronomeTickNotification")
+    static let metronomeStartNotification = Notification.Name("metronomeStartNotification")
+    static let metronomeStopNotification = Notification.Name("metronomeStopNotification")
 }
 
 #Preview {
