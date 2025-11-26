@@ -12,7 +12,7 @@ struct MIDISourceSelectionView: View {
     @Binding var selectedSource: String?
     
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("MIDI Sources:")
                 .font(.headline)
             
@@ -23,8 +23,7 @@ struct MIDISourceSelectionView: View {
             } else {
                 ForEach(midiManager.availableSources, id: \.self) { source in
                     HStack {
-                        Text(source)
-                        Spacer()
+                        Text(source)                        
                         if selectedSource == source && midiManager.isConnected {
                             Button("Disconnect") {
                                 midiManager.disconnect()
@@ -53,6 +52,7 @@ struct MIDISourceSelectionView: View {
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
+        .frame(minHeight: 200)
     }
 }
 

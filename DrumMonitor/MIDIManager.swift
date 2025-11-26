@@ -222,3 +222,8 @@ struct MIDIPacketListIterator: Sequence, IteratorProtocol {
         return result
     }
 }
+
+// Notification extensions
+extension Notification.Name {
+    static let midiMessageReceived = Notification.Name("midiMessageReceived")
+}

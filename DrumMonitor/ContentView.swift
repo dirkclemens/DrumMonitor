@@ -27,51 +27,28 @@ struct ContentView: View {
                     .font(.headline)
             }
             
-            // MIDI Source Selection
-            MIDISourceSelectionView(selectedSource: $selectedSource)
-            
-            // Last MIDI Message
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Last MIDI Message:")
-                    .font(.headline)
-                
-                if let message = midiManager.lastMessage {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text("Pad:")
-                                .bold()
-                            Text(message.drumPad)
-                        }
-                        
-                        HStack {
-                            Text("Velocity:")
-                                .bold()
-                            Text("\(message.velocity)")
-                            
-                            // Velocity bar
-                            ProgressView(value: Double(message.velocity), total: 127.0)
-                                .frame(width: 100)
-                        }
-                        
-                        HStack {
-                            Text("Note:")
-                                .bold()
-                            Text("\(message.note)")
-                            
-                            Text("Channel:")
-                                .bold()
-                            Text("\(message.channel + 1)")
-                        }
-                    }
-                } else {
-                    Text("No MIDI data received")
-                        .foregroundColor(.secondary)
-                        .italic()
-                }
+            HStack(alignment: .top, spacing: 10) {
+                Spacer()
+                // MIDI Source Selection
+                MIDISourceSelectionView(selectedSource: $selectedSource)
+                Spacer()
+                // Last MIDI Message
+                MIDIMessageDisplayView()
+                Spacer()
             }
             .padding()
-            .background(Color.blue.opacity(0.1))
+            .border(Color.gray.opacity(0.5))
             .cornerRadius(10)
+
+            Spacer()
+            
+            // Metronome
+            MetronomeView()
+            
+            Spacer()
+
+            // Timing Sync
+            TimingSyncView()
             
             Spacer()
         }
