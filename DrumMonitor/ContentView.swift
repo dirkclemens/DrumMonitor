@@ -28,43 +28,7 @@ struct ContentView: View {
             }
             
             // MIDI Source Selection
-            VStack(alignment: .leading) {
-                Text("MIDI Sources:")
-                    .font(.headline)
-                
-                if midiManager.availableSources.isEmpty {
-                    Text("No MIDI sources available")
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else {
-                    ForEach(midiManager.availableSources, id: \.self) { source in
-                        HStack {
-                            Text(source)
-                            Spacer()
-                            if selectedSource == source && midiManager.isConnected {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                            } else {
-                                Button("Connect") {
-                                    midiManager.disconnect()
-                                    midiManager.connectToSource(named: source)
-                                    selectedSource = source
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-                
-                Button("Refresh") {
-                    midiManager.refreshSources()
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
+            MIDISourceSelectionView(selectedSource: $selectedSource)
             
             // Last MIDI Message
             VStack(alignment: .leading, spacing: 10) {
@@ -108,15 +72,6 @@ struct ContentView: View {
             .padding()
             .background(Color.blue.opacity(0.1))
             .cornerRadius(10)
-            
-            if midiManager.isConnected {
-                Button("Disconnect") {
-                    midiManager.disconnect()
-                    selectedSource = nil
-                }
-                .buttonStyle(.bordered)
-                .foregroundColor(.red)
-            }
             
             Spacer()
         }
