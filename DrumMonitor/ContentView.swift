@@ -28,16 +28,16 @@ struct ContentView: View {
             }
             
             HStack(alignment: .top, spacing: 10) {
-                Spacer()
+//                Spacer()
                 // MIDI Source Selection
                 MIDISourceSelectionView(selectedSource: $selectedSource)
-                Spacer()
+//                Spacer()
                 // Last MIDI Message
                 MIDIMessageDisplayView()
-                Spacer()
+//                Spacer()
             }
             .padding()
-            .border(Color.gray.opacity(0.5))
+            .background(Color.gray.opacity(0.1))
             .cornerRadius(10)
 
             Spacer()
@@ -49,6 +49,10 @@ struct ContentView: View {
 
             // Timing Sync
             TimingSyncView()
+            
+            Spacer()
+            
+            VelocityView()
             
             Spacer()
         }

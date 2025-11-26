@@ -49,10 +49,9 @@ struct MIDISourceSelectionView: View {
             }
             .buttonStyle(.bordered)
         }
+        .frame(minHeight: 150)
         .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
-        .frame(minHeight: 200)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.1)))
     }
 }
 

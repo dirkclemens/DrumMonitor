@@ -39,34 +39,42 @@ struct TimingSyncView: View {
             }
             
             // Visual Timing Indicator
-            HStack(spacing: 4) {
-                Rectangle()
-                    .fill(.red.opacity(0.3))
-                    .frame(width: 40, height: 8)
+            GeometryReader { geometry in
+                let totalSpacing: CGFloat = 16 // 4 gaps of 4 points each
+                let availableWidth = geometry.size.width - totalSpacing
+                let totalRelativeWidth: CGFloat = 40 + 25 + 10 + 25 + 40 // 140
+                let widthMultiplier = availableWidth / totalRelativeWidth
                 
-                Rectangle()
-                    .fill(.yellow.opacity(0.5))
-                    .frame(width: 20, height: 8)
-                
-                Rectangle()
-                    .fill(.green)
-                    .frame(width: 20, height: 12)
-                
-                Rectangle()
-                    .fill(.yellow.opacity(0.5))
-                    .frame(width: 20, height: 8)
-                
-                Rectangle()
-                    .fill(.red.opacity(0.3))
-                    .frame(width: 40, height: 8)
+                HStack(spacing: 4) {
+                    Rectangle()
+                        .fill(.red.opacity(0.3))
+                        .frame(width: 40 * widthMultiplier, height: 8)
+                    
+                    Rectangle()
+                        .fill(.yellow.opacity(0.5))
+                        .frame(width: 25 * widthMultiplier, height: 8)
+                    
+                    Rectangle()
+                        .fill(.green)
+                        .frame(width: 10 * widthMultiplier, height: 12)
+                    
+                    Rectangle()
+                        .fill(.yellow.opacity(0.5))
+                        .frame(width: 25 * widthMultiplier, height: 8)
+                    
+                    Rectangle()
+                        .fill(.red.opacity(0.3))
+                        .frame(width: 40 * widthMultiplier, height: 8)
+                }
+                .overlay(
+                    Capsule()
+                        .fill(.orange)
+                        .frame(width: 10, height: 25)
+                        .offset(x: CGFloat(currentDeviation * (availableWidth / 2))) // Scale relative to available width
+                        .animation(.easeInOut(duration: 0.1), value: currentDeviation)
+                )
             }
-            .overlay(
-                Rectangle()
-                    .fill(.blue)
-                    .frame(width: 2, height: 16)
-                    .offset(x: CGFloat(currentDeviation * 500)) // Scale for visualization
-                    .animation(.easeInOut(duration: 0.1), value: currentDeviation)
-            )
+            .frame(height: 16)
             
             // Statistics
             VStack(spacing: 5) {
@@ -113,7 +121,7 @@ struct TimingSyncView: View {
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
-        .frame(minHeight: 100)
+//        .frame(minHeight: 100)
         .onReceive(NotificationCenter.default.publisher(for: .metronomeTickNotification)) { notification in
             print("TimingSyncView: Received metronome tick notification")
             if let tickTime = notification.object as? Date, isListening {

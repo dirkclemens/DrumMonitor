@@ -70,7 +70,7 @@ struct MetronomeView: View {
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
-        .frame(minHeight: 100)
+//        .frame(minHeight: 100)
         .onAppear {
             setupAudio()
         }
@@ -100,12 +100,12 @@ struct MetronomeView: View {
     
     private func startMetronome() {
         isRunning = true
-        currentBeat = 0
+        currentBeat = -1
         let interval = 60.0 / bpm
         
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-            playTick()
             currentBeat += 1
+            playTick()
         }
     }
     
