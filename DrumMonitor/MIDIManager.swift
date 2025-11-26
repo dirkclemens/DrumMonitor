@@ -118,6 +118,10 @@ class MIDIManager: ObservableObject {
             }
             
             messageSubject.send(message)
+            
+            // Send notification for timing sync
+            print("MIDIManager: Posting MIDI message notification")
+            NotificationCenter.default.post(name: .midiMessageReceived, object: message)
         }
     }
     

@@ -125,6 +125,7 @@ struct MetronomeView: View {
         let tickTime = Date()
         
         // Send notification for timing sync
+        print("MetronomeView: Posting metronome tick notification")
         NotificationCenter.default.post(name: .metronomeTickNotification, object: tickTime)
         
         // Generate a simple tick sound using AVAudioPlayerNode

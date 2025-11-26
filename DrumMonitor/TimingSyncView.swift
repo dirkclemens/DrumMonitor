@@ -115,11 +115,13 @@ struct TimingSyncView: View {
         .cornerRadius(10)
         .frame(minHeight: 100)
         .onReceive(NotificationCenter.default.publisher(for: .metronomeTickNotification)) { notification in
+            print("TimingSyncView: Received metronome tick notification")
             if let tickTime = notification.object as? Date, isListening {
                 recordMetronomeTick(at: tickTime)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .midiMessageReceived)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .midiMessageReceived)) { notification in
+            print("TimingSyncView: Received MIDI message notification")
             if isListening {
                 recordMidiMessage()
             }
