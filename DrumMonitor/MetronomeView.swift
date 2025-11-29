@@ -15,6 +15,12 @@ struct MetronomeView: View {
     @State private var audioEngine = AVAudioEngine()
     @State private var player = AVAudioPlayerNode()
     @State private var currentBeat = 0
+    @State private var midiMessageTimestamps: [Date] = []
+    @State private var midiBPM: Double = 0
+    @State private var midiAverageBPM: Double = 0
+    @State private var midiBPMTimer: Timer?
+    
+    private let bpmKey = "DrumMonitor_BPM"
     
     var body: some View {
         VStack(spacing: 15) {
@@ -23,7 +29,7 @@ struct MetronomeView: View {
                 .bold()
             
             // BPM Display
-            Text("\(Int(bpm)) BPM")
+            Text(isRunning ? "\(Int(bpm)) BPM" : "\(Int(midiAverageBPM)) BPM (MIDI avg)" )
                 .font(.title2)
                 .bold()
             
@@ -32,7 +38,8 @@ struct MetronomeView: View {
                 Text("Tempo")
                     .font(.caption)
                 Slider(value: $bpm, in: 60...200, step: 1)
-                    .onChange(of: bpm) { _, _ in
+                    .onChange(of: bpm) { _, newValue in
+                        UserDefaults.standard.set(newValue, forKey: bpmKey)
                         if isRunning {
                             restartMetronome()
                         }
@@ -73,9 +80,16 @@ struct MetronomeView: View {
 //        .frame(minHeight: 100)
         .onAppear {
             setupAudio()
+            setupMIDICounter()
+            if let storedBPM = UserDefaults.standard.value(forKey: bpmKey) as? Double {
+                bpm = storedBPM
+            } else {
+                bpm = 120
+            }
         }
         .onDisappear {
             stopMetronome()
+            stopMIDICounter()
         }
     }
     
@@ -109,6 +123,7 @@ struct MetronomeView: View {
         }
         
         NotificationCenter.default.post(name: .metronomeStartNotification, object: nil)
+        stopMIDICounter()
     }
     
     private func stopMetronome() {
@@ -118,6 +133,7 @@ struct MetronomeView: View {
         currentBeat = 0
         
         NotificationCenter.default.post(name: .metronomeStopNotification, object: nil)
+        setupMIDICounter()
     }
     
     private func restartMetronome() {
@@ -129,7 +145,7 @@ struct MetronomeView: View {
         let tickTime = Date()
         
         // Send notification for timing sync
-        print("MetronomeView: Posting metronome tick notification")
+//        print("MetronomeView: Posting metronome tick notification")
         NotificationCenter.default.post(name: .metronomeTickNotification, object: tickTime)
         
         // Generate a simple tick sound using AVAudioPlayerNode
@@ -157,6 +173,38 @@ struct MetronomeView: View {
         if !player.isPlaying {
             player.play()
         }
+    }
+    
+    private func setupMIDICounter() {
+        NotificationCenter.default.addObserver(forName: .midiMessageReceived, object: nil, queue: .main) { notification in
+            guard !isRunning else { return }
+            let now = Date()
+            midiMessageTimestamps.append(now)
+            // Remove timestamps older than 10 seconds for rolling window
+            midiMessageTimestamps = midiMessageTimestamps.filter { now.timeIntervalSince($0) <= 10 }
+        }
+        midiBPMTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            guard !isRunning else { midiAverageBPM = 0; return }
+            if midiMessageTimestamps.count >= 2 {
+                let first = midiMessageTimestamps.first!
+                let last = midiMessageTimestamps.last!
+                let totalTime = last.timeIntervalSince(first)
+                let messageCount = midiMessageTimestamps.count - 1
+                if totalTime > 0 {
+                    midiAverageBPM = Double(messageCount) / totalTime * 60.0
+                } else {
+                    midiAverageBPM = 0
+                }
+            } else {
+                midiAverageBPM = 0
+            }
+        }
+    }
+    private func stopMIDICounter() {
+        midiBPMTimer?.invalidate()
+        midiBPMTimer = nil
+        midiMessageTimestamps.removeAll()
+        midiAverageBPM = 0
     }
 }
 

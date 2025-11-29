@@ -115,13 +115,11 @@ class MIDIManager: ObservableObject {
             
             DispatchQueue.main.async {
                 self.lastMessage = message
+                self.messageSubject.send(message)
+                // Send notification for timing sync
+//                print("MIDIManager: Posting MIDI message notification")
+                NotificationCenter.default.post(name: .midiMessageReceived, object: message)
             }
-            
-            messageSubject.send(message)
-            
-            // Send notification for timing sync
-            print("MIDIManager: Posting MIDI message notification")
-            NotificationCenter.default.post(name: .midiMessageReceived, object: message)
         }
     }
     

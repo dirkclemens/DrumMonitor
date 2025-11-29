@@ -50,6 +50,7 @@ struct MIDISourceSelectionView: View {
             .buttonStyle(.bordered)
         }
         .frame(minHeight: 150)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding()
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.1)))
     }

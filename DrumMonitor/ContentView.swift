@@ -28,13 +28,11 @@ struct ContentView: View {
             }
             
             HStack(alignment: .top, spacing: 10) {
-//                Spacer()
                 // MIDI Source Selection
                 MIDISourceSelectionView(selectedSource: $selectedSource)
-//                Spacer()
+
                 // Last MIDI Message
                 MIDIMessageDisplayView()
-//                Spacer()
             }
             .padding()
             .background(Color.gray.opacity(0.1))
@@ -62,6 +60,21 @@ struct ContentView: View {
         .padding()
         .onAppear {
             midiManager.refreshSources()
+        }
+        .onChange(of: midiManager.isConnected) {
+            setWindowSize(connected: midiManager.isConnected)
+        }
+    }
+    
+    private func setWindowSize(connected: Bool) {
+        let minSize = NSSize(width: 600, height: 180) // Disconnected size
+        let maxSize = NSSize(width: 600, height: 700) // Connected size
+        DispatchQueue.main.async {
+            if let window = NSApp.windows.first {
+                window.setContentSize(connected ? maxSize : minSize)
+                window.minSize = connected ? maxSize : minSize
+                window.maxSize = connected ? maxSize : minSize
+            }
         }
     }
 }

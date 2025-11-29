@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		43CDF3DE2ED9CFD500D9E202 /* Appicon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 43CDF3DD2ED9CFD500D9E202 /* Appicon.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		43CDF3B02ED779D600D9E202 /* DrumMonitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DrumMonitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		43CDF3DD2ED9CFD500D9E202 /* Appicon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Appicon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +37,7 @@
 		43CDF3A72ED779D600D9E202 = {
 			isa = PBXGroup;
 			children = (
+				43CDF3DD2ED9CFD500D9E202 /* Appicon.icon */,
 				43CDF3B22ED779D600D9E202 /* DrumMonitor */,
 				43CDF3B12ED779D600D9E202 /* Products */,
 			);
@@ -109,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				43CDF3DE2ED9CFD500D9E202 /* Appicon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -248,8 +255,9 @@
 		43CDF3BC2ED779D700D9E202 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Appicon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -282,8 +290,9 @@
 		43CDF3BD2ED779D700D9E202 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Appicon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = DrumMonitor/DrumMonitor.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
