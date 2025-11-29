@@ -39,6 +39,7 @@ struct VelocitySineWaveView: View {
                 }
                 .stroke(style: StrokeStyle(lineWidth: 1, dash: [6, 6]))
                 .foregroundColor(.gray.opacity(0.4))
+                
                 // Sine wave
                 Path { path in
                     let points = 200

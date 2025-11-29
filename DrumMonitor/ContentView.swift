@@ -44,6 +44,9 @@ struct ContentView: View {
                 
                 // Metronome
                 MetronomeView()
+                
+                // Oscilloscope
+                OscilloscopeView()
             
                 Spacer()
 
