@@ -19,123 +19,126 @@ struct TimingSyncView: View {
     @State private var deviationColor: Color = .green
     
     var body: some View {
-        VStack(spacing: 15) {
-            Text("Timing Sync")
-                .font(.headline)
-                .bold()
+        ViewContainer(title: "Timing Sync", footer: "Shows timing deviation between MIDI input and metronome") {
             
-            // Current Deviation Display
-            VStack(spacing: 8) {
-                Text("Current Deviation")
-                    .font(.caption)
+            VStack(spacing: 10) {
+                //            Text("Timing Sync")
+                //                .font(.headline)
+                //                .bold()
                 
-                HStack(){
-                    Text("\(Int(abs(currentDeviation * 1000)))ms")
-                        .font(.title2)
-                        .bold()
-                        .foregroundColor(deviationColor)
+                // Current Deviation Display
+                VStack(spacing: 8) {
+                    Text("Current Deviation")
+                        .font(.caption)
                     
-                    Text(accuracy)
-                        .font(.title2)
-                        .bold()
-                        .foregroundColor(deviationColor)
-                }
-            }
-            
-            // Visual Timing Indicator
-            GeometryReader { geometry in
-                let totalSpacing: CGFloat = 28 // 7 gaps of 4 points each
-                let availableWidth = geometry.size.width - totalSpacing
-                let totalRelativeWidth: CGFloat = 100 // 100ms total range
-                let widthMultiplier = availableWidth / totalRelativeWidth
-//                let thresholds: [Double] = [-50, -25, -10, 10, 25, 50]
-//                let regionWidths: [CGFloat] = [25, 12.5, 7.5, 5, 5, 7.5, 12.5, 25]
-                HStack(spacing: 4) {
-                    Rectangle()
-                        .fill(Color.red.opacity(0.3))
-                        .frame(width: 25 * widthMultiplier, height: 8)
-                    Rectangle()
-                        .fill(Color.orange.opacity(0.5))
-                        .frame(width: 12.5 * widthMultiplier, height: 10)
-                    Rectangle()
-                        .fill(Color.yellow.opacity(0.5))
-                        .frame(width: 7.5 * widthMultiplier, height: 12)
-                    Rectangle()
-                        .fill(Color.green)
-                        .frame(width: 5 * widthMultiplier, height: 14)
-                    Rectangle()
-                        .fill(Color.green)
-                        .frame(width: 5 * widthMultiplier, height: 14)
-                    Rectangle()
-                        .fill(Color.yellow.opacity(0.5))
-                        .frame(width: 7.5 * widthMultiplier, height: 12)
-                    Rectangle()
-                        .fill(Color.orange.opacity(0.5))
-                        .frame(width: 12.5 * widthMultiplier, height: 10)
-                    Rectangle()
-                        .fill(Color.red.opacity(0.3))
-                        .frame(width: 25 * widthMultiplier, height: 8)
-                }
-                .overlay(
-                    Capsule()
-                        .fill(deviationColor)
-                        .frame(width: 10, height: 25)
-                        .offset(x: CGFloat(max(-50, min(50, currentDeviation * 1000)) / 50) * (availableWidth / 2))
-                        .animation(.easeInOut(duration: 0.1), value: currentDeviation)
-                )
-            }
-            .frame(height: 16)
-            
-            // Statistics
-            VStack(spacing: 5) {
-                HStack {
-                    Spacer()
-                    Text("Average:")
-                        .font(.caption2)
-//                    Spacer()
-                    Text("\(Int(abs(averageDeviation * 1000)))ms")
-                        .font(.caption2)
-                        .bold()
-                    Spacer()
+                    HStack(){
+                        Text("\(Int(abs(currentDeviation * 1000)))ms")
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(deviationColor)
+                        
+                        Text(accuracy)
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(deviationColor)
+                    }
                 }
                 
-                HStack {
-                    Spacer()
-                    Text("Samples:")
-                        .font(.caption2)
-//                    Spacer()
-                    Text("\(timingDeviations.count)")
-                        .font(.caption2)
-                        .bold()
-                    Spacer()
+                // Visual Timing Indicator
+                GeometryReader { geometry in
+                    let totalSpacing: CGFloat = 28 // 7 gaps of 4 points each
+                    let availableWidth = geometry.size.width - totalSpacing
+                    let totalRelativeWidth: CGFloat = 100 // 100ms total range
+                    let widthMultiplier = availableWidth / totalRelativeWidth
+                    //                let thresholds: [Double] = [-50, -25, -10, 10, 25, 50]
+                    //                let regionWidths: [CGFloat] = [25, 12.5, 7.5, 5, 5, 7.5, 12.5, 25]
+                    HStack(spacing: 4) {
+                        Rectangle()
+                            .fill(Color.red.opacity(0.3))
+                            .frame(width: 25 * widthMultiplier, height: 8)
+                        Rectangle()
+                            .fill(Color.orange.opacity(0.5))
+                            .frame(width: 12.5 * widthMultiplier, height: 10)
+                        Rectangle()
+                            .fill(Color.yellow.opacity(0.5))
+                            .frame(width: 7.5 * widthMultiplier, height: 12)
+                        Rectangle()
+                            .fill(Color.green)
+                            .frame(width: 5 * widthMultiplier, height: 14)
+                        Rectangle()
+                            .fill(Color.green)
+                            .frame(width: 5 * widthMultiplier, height: 14)
+                        Rectangle()
+                            .fill(Color.yellow.opacity(0.5))
+                            .frame(width: 7.5 * widthMultiplier, height: 12)
+                        Rectangle()
+                            .fill(Color.orange.opacity(0.5))
+                            .frame(width: 12.5 * widthMultiplier, height: 10)
+                        Rectangle()
+                            .fill(Color.red.opacity(0.3))
+                            .frame(width: 25 * widthMultiplier, height: 8)
+                    }
+                    .overlay(
+                        Capsule()
+                            .fill(deviationColor)
+                            .frame(width: 10, height: 25)
+                            .offset(x: CGFloat(max(-50, min(50, currentDeviation * 1000)) / 50) * (availableWidth / 2))
+                            .animation(.easeInOut(duration: 0.1), value: currentDeviation)
+                    )
                 }
-            }
-            
-            // Control Buttons
-            HStack(spacing: 10) {
-//                Button(action: {}) {
-//                    Text(isListening ? "Listening" : "Waiting")
-//                        .font(.headline)
-//                        .foregroundColor(.white)
-//                        .frame(width: 80, height: 35)
-//                        .background(isListening ? .green : .gray)
-//                        .cornerRadius(8)
-//                }
-//                .disabled(true)
+                .frame(height: 16)
                 
-                Button(action: reset) {
-                    Text("Reset")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(width: 80, height: 35)
-                        .background(.blue)
-                        .cornerRadius(8)
+                // Statistics
+                VStack(spacing: 5) {
+                    HStack {
+                        Spacer()
+                        Text("Average:")
+                            .font(.caption2)
+                        //                    Spacer()
+                        Text("\(Int(abs(averageDeviation * 1000)))ms")
+                            .font(.caption2)
+                            .bold()
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Spacer()
+                        Text("Samples:")
+                            .font(.caption2)
+                        //                    Spacer()
+                        Text("\(timingDeviations.count)")
+                            .font(.caption2)
+                            .bold()
+                        Spacer()
+                    }
+                }
+                
+                // Control Buttons
+                HStack(spacing: 10) {
+                    //                Button(action: {}) {
+                    //                    Text(isListening ? "Listening" : "Waiting")
+                    //                        .font(.headline)
+                    //                        .foregroundColor(.white)
+                    //                        .frame(width: 80, height: 35)
+                    //                        .background(isListening ? .green : .gray)
+                    //                        .cornerRadius(8)
+                    //                }
+                    //                .disabled(true)
+                    
+                    Button(action: reset) {
+                        Text("Reset")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 35)
+                            .background(.blue)
+                            .cornerRadius(8)
+                    }
                 }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
+//        .padding()
+//        .background(Color.gray.opacity(0.1))
+//        .cornerRadius(10)
 //        .frame(minHeight: 100)
         .onReceive(NotificationCenter.default.publisher(for: .metronomeTickNotification)) { notification in
 //            print("TimingSyncView: Received metronome tick notification")

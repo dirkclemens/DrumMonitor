@@ -15,81 +15,76 @@ struct MetronomeView: View {
     @State private var audioEngine = AVAudioEngine()
     @State private var player = AVAudioPlayerNode()
     @State private var currentBeat = 0
-    @State private var midiMessageTimestamps: [Date] = []
-    @State private var midiBPM: Double = 0
-    @State private var midiAverageBPM: Double = 0
-    @State private var midiBPMTimer: Timer?
+    @State private var midiClockTimestamps: [Date] = []
+    @State private var midiClockBPM: Double = 0
+    @State private var midiClockBPMTimer: Timer?
+    @State private var midiMessageObserver: NSObjectProtocol?
     
     private let bpmKey = "DrumMonitor_BPM"
     
     var body: some View {
-        VStack(spacing: 15) {
-            Text("Metronome")
-                .font(.headline)
-                .bold()
-            
-            // BPM Display
-            Text(isRunning ? "\(Int(bpm)) BPM" : "\(Int(midiAverageBPM)) BPM (MIDI avg)" )
-                .font(.title2)
-                .bold()
-            
-            // BPM Slider
-            VStack {
-                Text("Tempo")
-                    .font(.caption)
-                Slider(value: $bpm, in: 60...200, step: 1)
-                    .onChange(of: bpm) { _, newValue in
-                        UserDefaults.standard.set(newValue, forKey: bpmKey)
-                        if isRunning {
-                            restartMetronome()
+        ViewContainer(title: "Metronome", footer: "Set the tempo and start/stop the metronome.") {
+            VStack(spacing: 10) {
+                // BPM Display
+                Text(isRunning ? "\(Int(bpm)) BPM" : "\(Int(midiClockBPM)) BPM (MIDI clock)")
+                    .font(.title2)
+                    .bold()
+                
+                // BPM Slider
+                VStack {
+                    Text("Tempo")
+                        .font(.caption)
+                    Slider(value: $bpm, in: 60...180, step: 5)
+                        .onChange(of: bpm) { _, newValue in
+                            UserDefaults.standard.set(newValue, forKey: bpmKey)
+                            if isRunning {
+                                restartMetronome()
+                            }
                         }
+                    HStack {
+                        Text("60")
+                            .font(.caption2)
+                        Spacer()
+                        Text("180")
+                            .font(.caption2)
                     }
-                HStack {
-                    Text("60")
-                        .font(.caption2)
-                    Spacer()
-                    Text("200")
-                        .font(.caption2)
+                }
+                
+                // Beat Indicator
+                HStack(spacing: 8) {
+                    ForEach(0..<4, id: \.self) { beat in
+                        Circle()
+                            .fill(beat == currentBeat % 4 && isRunning ? .blue : .gray.opacity(0.3))
+                            .frame(width: 12, height: 12)
+                            .scaleEffect(beat == currentBeat % 4 && isRunning ? 1.2 : 1.0)
+                            .animation(.easeInOut(duration: 0.1), value: currentBeat)
+                    }
+                }
+                
+                // Start/Stop Button
+                Button(action: toggleMetronome) {
+                    Text(isRunning ? "Stop" : "Start")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+                .padding()
+                .background(isRunning ? .red : .green)
+                .frame(width: 80, height: 35)
+                .cornerRadius(8)
+            }
+            .onAppear {
+                setupAudio()
+                setupMIDIClockCounter()
+                if let storedBPM = UserDefaults.standard.value(forKey: bpmKey) as? Double {
+                    bpm = storedBPM
+                } else {
+                    bpm = 120
                 }
             }
-            
-            // Beat Indicator
-            HStack(spacing: 8) {
-                ForEach(0..<4, id: \.self) { beat in
-                    Circle()
-                        .fill(beat == currentBeat % 4 && isRunning ? .blue : .gray.opacity(0.3))
-                        .frame(width: 12, height: 12)
-                        .scaleEffect(beat == currentBeat % 4 && isRunning ? 1.2 : 1.0)
-                        .animation(.easeInOut(duration: 0.1), value: currentBeat)
-                }
+            .onDisappear {
+                stopMetronome()
+                stopMIDIClockCounter()
             }
-            
-            // Start/Stop Button
-            Button(action: toggleMetronome) {
-                Text(isRunning ? "Stop" : "Start")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(width: 80, height: 35)
-                    .background(isRunning ? .red : .green)
-                    .cornerRadius(8)
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
-//        .frame(minHeight: 100)
-        .onAppear {
-            setupAudio()
-            setupMIDICounter()
-            if let storedBPM = UserDefaults.standard.value(forKey: bpmKey) as? Double {
-                bpm = storedBPM
-            } else {
-                bpm = 120
-            }
-        }
-        .onDisappear {
-            stopMetronome()
-            stopMIDICounter()
         }
     }
     
@@ -123,7 +118,9 @@ struct MetronomeView: View {
         }
         
         NotificationCenter.default.post(name: .metronomeStartNotification, object: nil)
-        stopMIDICounter()
+        
+        // Stop MIDI clock counter when Metronome starts
+        stopMIDIClockCounter()
     }
     
     private func stopMetronome() {
@@ -131,9 +128,8 @@ struct MetronomeView: View {
         timer?.invalidate()
         timer = nil
         currentBeat = 0
-        
         NotificationCenter.default.post(name: .metronomeStopNotification, object: nil)
-        setupMIDICounter()
+        setupMIDIClockCounter()
     }
     
     private func restartMetronome() {
@@ -175,36 +171,49 @@ struct MetronomeView: View {
         }
     }
     
-    private func setupMIDICounter() {
-        NotificationCenter.default.addObserver(forName: .midiMessageReceived, object: nil, queue: .main) { notification in
-            guard !isRunning else { return }
-            let now = Date()
-            midiMessageTimestamps.append(now)
-            // Remove timestamps older than 10 seconds for rolling window
-            midiMessageTimestamps = midiMessageTimestamps.filter { now.timeIntervalSince($0) <= 10 }
+    private func setupMIDIClockCounter() {
+        // Remove previous observer if exists
+        if let observer = midiMessageObserver {
+            NotificationCenter.default.removeObserver(observer)
+            midiMessageObserver = nil
         }
-        midiBPMTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            guard !isRunning else { midiAverageBPM = 0; return }
-            if midiMessageTimestamps.count >= 2 {
-                let first = midiMessageTimestamps.first!
-                let last = midiMessageTimestamps.last!
+        midiMessageObserver = NotificationCenter.default.addObserver(forName: .midiMessageReceived, object: nil, queue: .main) { notification in
+            guard !isRunning else { return }
+            // Only count Note On messages (drum pad hits)
+            if let message = notification.object as? MIDIMessage, (message.status & 0xF0) == 0x90, message.velocity > 0 {
+                let now = Date()
+                midiClockTimestamps.append(now)
+                // Remove timestamps older than 10 seconds for rolling window
+                midiClockTimestamps = midiClockTimestamps.filter { now.timeIntervalSince($0) <= 4 }
+            }
+        }
+        midiClockBPMTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            guard !isRunning else { midiClockBPM = 0; return }
+            if midiClockTimestamps.count >= 2 {
+                let first = midiClockTimestamps.first!
+                let last = midiClockTimestamps.last!
                 let totalTime = last.timeIntervalSince(first)
-                let messageCount = midiMessageTimestamps.count - 1
+                let hitCount = midiClockTimestamps.count - 1
                 if totalTime > 0 {
-                    midiAverageBPM = Double(messageCount) / totalTime * 60.0
+                    // Hits per minute
+                    midiClockBPM = Double(hitCount) / totalTime * 60.0
                 } else {
-                    midiAverageBPM = 0
+                    midiClockBPM = 0
                 }
             } else {
-                midiAverageBPM = 0
+                midiClockBPM = 0
             }
         }
     }
-    private func stopMIDICounter() {
-        midiBPMTimer?.invalidate()
-        midiBPMTimer = nil
-        midiMessageTimestamps.removeAll()
-        midiAverageBPM = 0
+    private func stopMIDIClockCounter() {
+        midiClockBPMTimer?.invalidate()
+        midiClockBPMTimer = nil
+        midiClockTimestamps.removeAll()
+        midiClockBPM = 0
+        if let observer = midiMessageObserver {
+            NotificationCenter.default.removeObserver(observer)
+            midiMessageObserver = nil
+        }
     }
 }
 

@@ -18,30 +18,32 @@ struct VelocityView: View {
     private let maxHistoryCount = 100
     
     var body: some View {
-        VStack {
-            Text("Velocity Visualization")
-                .font(.headline)
-                .padding(.bottom, 5)
-            
-            Text("Current Velocity: \(Int(currentVelocity))")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            HStack() {
-                VelocitySineWaveView(velocity: currentVelocity, animationPhase: animationPhase)
-                    .frame(minHeight: 150)
-                    .background(.black.opacity(0.05))
-                    .cornerRadius(8)
-            
-                VUMeterView(level: currentVelocity / 127.0)
-                    .frame(maxHeight: .infinity)
-                    .frame(width: 30)
-            }//HStack
-            
-        }//VStack
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
+        ViewContainer(title: "Velocity View", footer: "Visualizes the velocity of incoming MIDI note-on messages.") {
+            VStack(spacing: 10) {
+//                Text("Velocity Visualization")
+//                    .font(.headline)
+//                    .padding(.bottom, 5)
+                
+                Text("Current Velocity: \(Int(currentVelocity))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack() {
+                    VelocitySineWaveView(velocity: currentVelocity, animationPhase: animationPhase)
+                        .frame(minHeight: 150)
+                        .background(.black.opacity(0.05))
+                        .cornerRadius(8)
+                    
+                    VUMeterView(level: currentVelocity / 127.0)
+                        .frame(maxHeight: .infinity)
+                        .frame(width: 30)
+                }//HStack
+                
+            }//VStack
+            //        .padding()
+            //        .background(Color.gray.opacity(0.1))
+            //        .cornerRadius(10)
+        }
         .onAppear {
             startAnimation()
             setupNotificationObserver()

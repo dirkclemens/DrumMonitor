@@ -112,13 +112,17 @@ class MIDIManager: ObservableObject {
                 velocity: velocity,
                 channel: channel
             )
-            
             DispatchQueue.main.async {
                 self.lastMessage = message
                 self.messageSubject.send(message)
-                // Send notification for timing sync
-//                print("MIDIManager: Posting MIDI message notification")
                 NotificationCenter.default.post(name: .midiMessageReceived, object: message)
+            }
+        }
+        // Post notification for MIDI Clock (0xF8)
+        if status == 0xF8 {
+            print("MIDIManager: Received MIDI clock (0xF8)")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .midiClockReceived, object: nil)
             }
         }
     }
@@ -228,4 +232,5 @@ struct MIDIPacketListIterator: Sequence, IteratorProtocol {
 // Notification extensions
 extension Notification.Name {
     static let midiMessageReceived = Notification.Name("midiMessageReceived")
+    static let midiClockReceived = Notification.Name("midiClockReceived")
 }
