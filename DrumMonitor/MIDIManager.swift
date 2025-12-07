@@ -37,6 +37,7 @@ class MIDIManager: ObservableObject {
     @Published var lastMessage: MIDIMessage?
     @Published var isConnected = false
     @Published var availableSources: [String] = []
+    @Published var bpm: Double = 120.0
     
     private var midiClient: MIDIClientRef = 0
     private var inputPort: MIDIPortRef = 0

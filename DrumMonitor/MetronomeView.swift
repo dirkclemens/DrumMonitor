@@ -9,6 +9,7 @@ import SwiftUI
 import AVFoundation
 
 struct MetronomeView: View {
+    @EnvironmentObject var midiManager: MIDIManager
     @State private var bpm: Double = 120
     @State private var isRunning = false
     @State private var timer: Timer?
@@ -19,8 +20,10 @@ struct MetronomeView: View {
     @State private var midiClockBPM: Double = 0
     @State private var midiClockBPMTimer: Timer?
     @State private var midiMessageObserver: NSObjectProtocol?
+    @State private var volume: Double = 0.5
     
     private let bpmKey = "DrumMonitor_BPM"
+    private let volumeKey = "DrumMonitor_Volume"
     
     var body: some View {
         ViewContainer(title: "Metronome", footer: "Set the tempo and start/stop the metronome.") {
@@ -37,6 +40,7 @@ struct MetronomeView: View {
                     Slider(value: $bpm, in: 60...180, step: 5)
                         .onChange(of: bpm) { _, newValue in
                             UserDefaults.standard.set(newValue, forKey: bpmKey)
+                            midiManager.bpm = newValue // keep global bpm in sync
                             if isRunning {
                                 restartMetronome()
                             }
@@ -61,16 +65,29 @@ struct MetronomeView: View {
                     }
                 }
                 
-                // Start/Stop Button
-                Button(action: toggleMetronome) {
-                    Text(isRunning ? "Stop" : "Start")
-                        .font(.headline)
-                        .foregroundColor(.white)
+                // Start/Stop Button + Volume Slider
+                HStack(spacing: 12) {
+                    Button(action: toggleMetronome) {
+                        Text(isRunning ? "Stop" : "Start")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .background(isRunning ? .red : .green)
+                    .frame(width: 80, height: 35)
+                    .cornerRadius(8)
+                    
+                    // Volume slider
+                    HStack(spacing: 4) {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.caption)
+                        Slider(value: $volume, in: 0.0...1.0, step: 0.1)
+                            .frame(width: 80)
+                            .onChange(of: volume) { _, newValue in
+                                UserDefaults.standard.set(newValue, forKey: volumeKey)
+                            }
+                    }
                 }
-                .padding()
-                .background(isRunning ? .red : .green)
-                .frame(width: 80, height: 35)
-                .cornerRadius(8)
             }
             .onAppear {
                 setupAudio()
@@ -79,6 +96,12 @@ struct MetronomeView: View {
                     bpm = storedBPM
                 } else {
                     bpm = 120
+                }
+                midiManager.bpm = bpm // keep global bpm in sync on appear
+                if let storedVolume = UserDefaults.standard.value(forKey: volumeKey) as? Double {
+                    volume = storedVolume
+                } else {
+                    volume = 0.5
                 }
             }
             .onDisappear {
@@ -139,24 +162,14 @@ struct MetronomeView: View {
     
     private func playTick() {
         let tickTime = Date()
-        
-        // Send notification for timing sync
-//        print("MetronomeView: Posting metronome tick notification")
         NotificationCenter.default.post(name: .metronomeTickNotification, object: tickTime)
-        
-        // Generate a simple tick sound using AVAudioPlayerNode
         let sampleRate = 44100.0
         let duration = 0.1
         let frameCount = AVAudioFrameCount(sampleRate * duration)
-        
         guard let buffer = AVAudioPCMBuffer(pcmFormat: audioEngine.mainMixerNode.outputFormat(forBus: 0), frameCapacity: frameCount) else { return }
-        
         buffer.frameLength = frameCount
-        
-        // Generate a simple beep
-        let frequency: Float = currentBeat % 4 == 0 ? 800 : 400 // Higher pitch on downbeat
-        let amplitude: Float = 0.3
-        
+        let frequency: Float = currentBeat % 4 == 0 ? 800 : 400
+        let amplitude: Float = Float(volume)
         for frame in 0..<Int(frameCount) {
             let value = sin(2.0 * Float.pi * frequency * Float(frame) / Float(sampleRate)) * amplitude
             buffer.floatChannelData?[0][frame] = value
@@ -164,7 +177,6 @@ struct MetronomeView: View {
                 buffer.floatChannelData?[1][frame] = value
             }
         }
-        
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
         if !player.isPlaying {
             player.play()
