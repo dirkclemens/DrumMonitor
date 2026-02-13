@@ -38,6 +38,15 @@ class MIDIManager: ObservableObject {
     @Published var isConnected = false
     @Published var availableSources: [String] = []
     @Published var bpm: Double = 120.0
+    @Published var seenNotes: [UInt8] = []
+
+    @Published var practiceMode: PracticeMode = .normal
+    @Published var subdivision: Int = 1
+    @Published var ghostBarsOn: Int = 4
+    @Published var ghostBarsOff: Int = 4
+    @Published var focusPad: UInt8? = nil
+    @Published var feedbackEnabled: Bool = false
+    @Published var feedbackThresholdMs: Double = 25
     
     private var midiClient: MIDIClientRef = 0
     private var inputPort: MIDIPortRef = 0
@@ -115,6 +124,10 @@ class MIDIManager: ObservableObject {
             )
             DispatchQueue.main.async {
                 self.lastMessage = message
+                if !self.seenNotes.contains(note) {
+                    self.seenNotes.append(note)
+                    self.seenNotes.sort()
+                }
                 self.messageSubject.send(message)
                 NotificationCenter.default.post(name: .midiMessageReceived, object: message)
             }
@@ -196,6 +209,13 @@ class MIDIManager: ObservableObject {
             MIDIClientDispose(midiClient)
         }
     }
+}
+
+enum PracticeMode: String, CaseIterable, Identifiable {
+    case normal = "Normal"
+    case ghost = "Ghost"
+
+    var id: String { rawValue }
 }
 
 // MIDI Packet List Iterator Helper

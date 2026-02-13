@@ -2,13 +2,15 @@ import SwiftUI
 
 struct OscilloscopeView: View {
     @EnvironmentObject var midiManager: MIDIManager
-    @State private var metronomePeaks: [Date] = []
-    @State private var midiPeaks: [Date] = []
-    @State private var midiPeaksPerPad: [UInt8: [Date]] = [:]
-    @State private var timer: Timer?
-    @State private var windowSeconds: Double = 1.0
-    @State private var sampleRate: Int = 120 // Number of points in the oscilloscope
-    @State private var autoMode: Bool = false
+    @State private var lastMetronomeTick: Date?
+    @State private var hitsPerPad: [UInt8: [HitSample]] = [:]
+    @State private var cleanupTimer: Timer?
+    @State private var metronomeObserver: NSObjectProtocol?
+    @State private var midiObserver: NSObjectProtocol?
+    @State private var windowSeconds: Double = 6.0
+    @State private var historyBeats: Double = 4.0
+    @State private var autoMode: Bool = true
+    @State private var isLoaded = false
     private let padColors: [Color] = [
         Color(red: 0.0, green: 0.45, blue: 0.70), // blue
         Color(red: 0.87, green: 0.56, blue: 0.05), // orange
@@ -22,33 +24,25 @@ struct OscilloscopeView: View {
         Color(red: 0.0, green: 0.0, blue: 0.0)     // black
     ]
     private let beatsToShow = 4.0
-    private let pointsPerBeat = 60.0
+    private let autoModeKey = "DrumMonitor_PhaseView_AutoMode"
+    private let historyBeatsKey = "DrumMonitor_PhaseView_HistoryBeats"
+    private let historySecondsKey = "DrumMonitor_PhaseView_HistorySeconds"
     
     var body: some View {
-        let padKeys = Array(midiPeaksPerPad.keys).sorted()
+        let padKeys = Array(hitsPerPad.keys).sorted()
         let padCount = padKeys.count
         
-        ViewContainer(title: "Oscilloscope", footer: "Shows the timing of MIDI drum hits and metronome ticks.") {
+        ViewContainer(title: "Phase View", footer: "Beat-aligned view of early/late hits.") {
             ZStack {
                 GeometryReader { geometry in
                     let width = geometry.size.width
                     let height = geometry.size.height
-                    let yAxisX = width / 2
-                    let metronomeColor = Color.gray.opacity(0.7)
+                    let centerX = width / 2
                     let now = Date()
-                    let times = (0..<sampleRate).map { i in
-                        now.addingTimeInterval(-windowSeconds + windowSeconds * Double(i) / Double(sampleRate))
-                    }
+                    let interval = 60.0 / max(30.0, midiManager.bpm) / Double(max(1, midiManager.subdivision))
+                    let halfInterval = interval / 2
+                    let step = interval / Double(max(1, midiManager.subdivision))
                     ZStack {
-                        // Coordinate grid
-                        Path { path in
-                            // Vertical y-axis
-                            path.move(to: CGPoint(x: yAxisX, y: 0))
-                            path.addLine(to: CGPoint(x: yAxisX, y: height))
-                        }
-                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundColor(.gray.opacity(0.5))
-
                         let bandHeight = height / CGFloat(max(padCount, 1))
 
                         // Background bands for each pad
@@ -60,22 +54,26 @@ struct OscilloscopeView: View {
                                 .position(x: width/2, y: bandY + bandHeight/2)
                         }
 
-                        // Metronome line (spans full height, based on bottom, with glow)
+                        // Grid lines (subdivision) and center line
                         Path { path in
-                            for (i, t) in times.enumerated() {
-                                let x = CGFloat(i) / CGFloat(sampleRate - 1) * width
-                                let peak = metronomePeaks.contains { abs($0.timeIntervalSince(t)) < 0.01 }
-                                let baseY = height - 2 // small offset from bottom
-                                let y = baseY - (peak ? height * 0.9 : 0)
-                                if i == 0 {
-                                    path.move(to: CGPoint(x: x, y: baseY))
-                                }
-                                path.addLine(to: CGPoint(x: x, y: y))
+                            let range = Int(ceil(Double(max(1, midiManager.subdivision)) / 2.0))
+                            for i in -range...range {
+                                let offset = Double(i) * step
+                                guard abs(offset) <= halfInterval + 0.0001 else { continue }
+                                let x = centerX + CGFloat(offset / halfInterval) * (width * 0.45)
+                                path.move(to: CGPoint(x: x, y: 0))
+                                path.addLine(to: CGPoint(x: x, y: height))
                             }
                         }
-                        .stroke(metronomeColor, lineWidth: 1)
+                        .stroke(Color.gray.opacity(0.25), lineWidth: 1)
 
-                        // MIDI lines per pad (stacked, overlayed)
+                        Path { path in
+                            path.move(to: CGPoint(x: centerX, y: 0))
+                            path.addLine(to: CGPoint(x: centerX, y: height))
+                        }
+                        .stroke(Color.blue.opacity(0.7), lineWidth: 2)
+
+                        // Hits per pad (dots)
                         ForEach(padKeys.enumerated().map({ ($0.offset, $0.element) }), id: \.1) { idx, noteIdx in
                             let color = padColors[idx % padColors.count]
                             let bandY = bandHeight * CGFloat(idx)
@@ -87,22 +85,18 @@ struct OscilloscopeView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.leading, 8)
                                     .padding(.top, 2)
-                                // Pad line centered vertically in band
-                                Path { path in
-                                    let bandCenterY = bandHeight / 2
-                                    for (i, t) in times.enumerated() {
-                                        let x = CGFloat(i) / CGFloat(sampleRate - 1) * width
-                                        let peak = midiPeaksPerPad[noteIdx]?.contains { abs($0.timeIntervalSince(t)) < 0.01 } ?? false
-                                        let y = bandCenterY + (peak ? -bandHeight * 0.4 : 0)
-                                        if i == 0 {
-                                            path.move(to: CGPoint(x: x, y: bandCenterY))
-                                        }
-                                        path.addLine(to: CGPoint(x: x, y: y))
-                                    }
+                                // Hit dots centered vertically in band
+                                ForEach(hitsPerPad[noteIdx] ?? []) { hit in
+                                    let age = now.timeIntervalSince(hit.timestamp)
+                                    let alpha = max(0.1, 1.0 - age / windowSeconds)
+                                    let clamped = min(max(hit.deviation, -halfInterval), halfInterval)
+                                    let x = centerX + CGFloat(clamped / halfInterval) * (width * 0.45)
+                                    let y = bandHeight / 2
+                                    Circle()
+                                        .fill(sampleColor(for: clamped * 1000.0).opacity(alpha))
+                                        .frame(width: 16, height: 16)
+                                        .position(x: x, y: y)
                                 }
-                                .stroke(color, lineWidth: 2)
-                                .frame(height: bandHeight)
-                                .offset(y: 0)
                             }
                             .frame(width: width, height: bandHeight)
                             .position(x: width/2, y: bandY + bandHeight/2)
@@ -114,17 +108,36 @@ struct OscilloscopeView: View {
                 // Sliders and auto toggle
                 VStack {
                     Spacer()
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         Toggle("Auto", isOn: $autoMode)
 //                            .toggleStyle(.checkbox)
                             .frame(width: 60)
                         HStack {
-                            Text("Window (s):")
-                            Slider(value: $windowSeconds, in: 1.0...6.1, step: 1.0)
-                                .frame(width: 120)
-                                .disabled(autoMode)
-                            Text(String(format: "%.2f", windowSeconds))
-                                .frame(width: 48, alignment: .leading)
+                            if autoMode {
+                                Text("History (beats):")
+                                Slider(value: $historyBeats, in: 2.0...16.0, step: 2.0)
+                                    .frame(width: 120)
+                                Text(String(format: "%.0f", historyBeats))
+                                    .frame(width: 32, alignment: .leading)
+                                Text(String(format: "(~%.1fs)", windowSeconds))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("History (s):")
+                                Slider(value: $windowSeconds, in: 2.0...12.0, step: 1.0)
+                                    .frame(width: 120)
+                                Text(String(format: "%.0f", windowSeconds))
+                                    .frame(width: 32, alignment: .leading)
+                            }
+                        }
+                        if autoMode {
+                            HStack(spacing: 6) {
+                                Button("2") { historyBeats = 2 }
+                                Button("4") { historyBeats = 4 }
+                                Button("8") { historyBeats = 8 }
+                                Button("16") { historyBeats = 16 }
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
@@ -133,51 +146,110 @@ struct OscilloscopeView: View {
             }
         }
         .onAppear {
-            startTimer()
+            startCleanupTimer()
             setupObservers()
+            if !isLoaded {
+                autoMode = UserDefaults.standard.object(forKey: autoModeKey) as? Bool ?? true
+                historyBeats = UserDefaults.standard.object(forKey: historyBeatsKey) as? Double ?? beatsToShow
+                windowSeconds = UserDefaults.standard.object(forKey: historySecondsKey) as? Double ?? 6.0
+                if autoMode {
+                    windowSeconds = historyBeats * (60.0 / max(30.0, midiManager.bpm))
+                }
+                isLoaded = true
+            }
         }
         .onDisappear {
-            stopTimer()
+            stopCleanupTimer()
+            teardownObservers()
         }
         .onChange(of: autoMode) { newValue, _ in
             if newValue {
-                windowSeconds = beatsToShow * (60.0 / (midiManager.bpm))
+                windowSeconds = historyBeats * (60.0 / max(30.0, midiManager.bpm))
+            }
+            if isLoaded {
+                UserDefaults.standard.set(newValue, forKey: autoModeKey)
             }
         }
         .onChange(of: midiManager.bpm) { newValue, _ in
             if autoMode {
-                windowSeconds = beatsToShow * (60.0 / newValue)
+                windowSeconds = historyBeats * (60.0 / newValue)
+            }
+        }
+        .onChange(of: historyBeats) { newValue, _ in
+            if autoMode {
+                windowSeconds = newValue * (60.0 / max(30.0, midiManager.bpm))
+            }
+            if isLoaded {
+                UserDefaults.standard.set(newValue, forKey: historyBeatsKey)
+            }
+        }
+        .onChange(of: windowSeconds) { newValue, _ in
+            if !autoMode, isLoaded {
+                UserDefaults.standard.set(newValue, forKey: historySecondsKey)
             }
         }
     }
     
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { _ in
+    private func startCleanupTimer() {
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
             let now = Date()
-            // Use the correct window for filtering
-            metronomePeaks = metronomePeaks.filter { now.timeIntervalSince($0) < windowSeconds }
-            midiPeaks = midiPeaks.filter { now.timeIntervalSince($0) < windowSeconds }
-            for note in midiPeaksPerPad.keys {
-                midiPeaksPerPad[note] = midiPeaksPerPad[note]?.filter { now.timeIntervalSince($0) < windowSeconds }
+            for key in hitsPerPad.keys {
+                hitsPerPad[key] = hitsPerPad[key]?.filter { now.timeIntervalSince($0.timestamp) < windowSeconds }
             }
         }
     }
     
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func stopCleanupTimer() {
+        cleanupTimer?.invalidate()
+        cleanupTimer = nil
     }
     
     private func setupObservers() {
-        NotificationCenter.default.addObserver(forName: .metronomeTickNotification, object: nil, queue: .main) { notification in
-            metronomePeaks.append(Date())
+        if let observer = metronomeObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
-        NotificationCenter.default.addObserver(forName: .midiMessageReceived, object: nil, queue: .main) { notification in
-            if let message = notification.object as? MIDIMessage {
-                midiPeaks.append(Date())
-                midiPeaksPerPad[message.note, default: []].append(Date())
+        if let observer = midiObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        metronomeObserver = NotificationCenter.default.addObserver(forName: .metronomeTickNotification, object: nil, queue: .main) { notification in
+            if let tickTime = notification.object as? Date {
+                lastMetronomeTick = tickTime
             }
         }
+
+        midiObserver = NotificationCenter.default.addObserver(forName: .midiMessageReceived, object: nil, queue: .main) { notification in
+            guard let tick = lastMetronomeTick else { return }
+            guard let message = notification.object as? MIDIMessage else { return }
+            guard (message.status & 0xF0) == 0x90, message.velocity > 0 else { return }
+            if let focus = midiManager.focusPad, message.note != focus {
+                return
+            }
+            let hitTime = Date()
+            let interval = 60.0 / max(30.0, midiManager.bpm) / Double(max(1, midiManager.subdivision))
+            let raw = hitTime.timeIntervalSince(tick)
+            let deviation = raw > interval / 2 ? raw - interval : raw
+            hitsPerPad[message.note, default: []].append(HitSample(timestamp: hitTime, deviation: deviation))
+        }
+    }
+
+    private func teardownObservers() {
+        if let observer = metronomeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            metronomeObserver = nil
+        }
+        if let observer = midiObserver {
+            NotificationCenter.default.removeObserver(observer)
+            midiObserver = nil
+        }
+    }
+
+    private func sampleColor(for deviationMs: Double) -> Color {
+        let absMs = abs(deviationMs)
+        if absMs < 10 { return .green }
+        if absMs < 25 { return .yellow }
+        if absMs < 50 { return .orange }
+        return .red
     }
 }
 
@@ -201,4 +273,10 @@ extension MIDIManager {
         default: return "Pad \(note)"
         }
     }
+}
+
+private struct HitSample: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let deviation: Double
 }

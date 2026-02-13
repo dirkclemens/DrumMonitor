@@ -10,25 +10,16 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var midiManager: MIDIManager
     @State private var selectedSource: String?
+    @State private var windowObserver: NSObjectProtocol?
+    @State private var windowMoveObserver: NSObjectProtocol?
     
     private let windowWidthKey = "DrumMonitor_WindowWidth"
     private let windowHeightKey = "DrumMonitor_WindowHeight"
+    private let windowOriginXKey = "DrumMonitor_WindowOriginX"
+    private let windowOriginYKey = "DrumMonitor_WindowOriginY"
     
     var body: some View {
         VStack(spacing: 10) {
-//            Text("Drum Monitor")
-//                .font(.largeTitle)
-//                .bold()
-            
-            // Connection Status
-//            HStack {
-//                Circle()
-//                    .fill(midiManager.isConnected ? .green : .red)
-//                    .frame(width: 12, height: 12)
-//
-//                Text(midiManager.isConnected ? "Connected" : "Disconnected")
-//                    .font(.headline)
-//            }
             
             HStack(alignment: .top, spacing: 10) {
                 // MIDI Source Selection
@@ -37,13 +28,23 @@ struct ContentView: View {
                 MetronomeView()
                 // Last MIDI Message
                 MIDIMessageDisplayView()
+                // Practice Controls
+                PracticeControlView()
             }
 
 //            if midiManager.isConnected {
                 // Oscilloscope
                 OscilloscopeView()
+                // Deviation Meter
+                DeviationMeterView()
+                // Hit Scatter Timeline
+                HitScatterTimelineView()
+                // Timing Accuracy Score
+                TimingAccuracyScoreView()
+                // Pad Stats
+                PadStatsView()
                 // Deviation Visualizer
-//                DeviationVisualizerView(
+//                DeviationVisualizerView()
                 // Timing Sync
 //                TimingSyncView()
                 // Velocity Visualization
@@ -55,42 +56,70 @@ struct ContentView: View {
         .onAppear {
             midiManager.refreshSources()
             restoreWindowSize()
+            startWindowSizeObserver()
         }
-//        .onChange(of: midiManager.isConnected) {
-//            setWindowSize(connected: midiManager.isConnected)
-//        }
+        .onDisappear {
+            stopWindowSizeObserver()
+        }
     }
-    
-    private func setWindowSize() {
-        let defaultSize = NSSize(width: 800, height: 180)
 
-        DispatchQueue.main.async {
-            if let window = NSApp.windows.first {
-                let width = UserDefaults.standard.double(forKey: windowWidthKey)
-                let height = UserDefaults.standard.double(forKey: windowHeightKey)
-                let size: NSSize
-                if width > 0 && height > 0 {
-                    size = NSSize(width: width, height: height)
-                } else {
-                    size = defaultSize
-                }
-                window.setContentSize(size)
-                // Save size
-                UserDefaults.standard.set(size.width, forKey: windowWidthKey)
-                UserDefaults.standard.set(size.height, forKey: windowHeightKey)
-            }
-        }
-    }
     private func restoreWindowSize() {
         let width = UserDefaults.standard.double(forKey: windowWidthKey)
         let height = UserDefaults.standard.double(forKey: windowHeightKey)
-        if width > 0 && height > 0 {
-            DispatchQueue.main.async {
-                if let window = NSApp.windows.first {
+        let originX = UserDefaults.standard.double(forKey: windowOriginXKey)
+        let originY = UserDefaults.standard.double(forKey: windowOriginYKey)
+        DispatchQueue.main.async {
+            if let window = NSApp.windows.first {
+                if width > 0 && height > 0 {
                     let size = NSSize(width: width, height: height)
                     window.setContentSize(size)
                 }
+                if originX != 0 || originY != 0 {
+                    let origin = NSPoint(x: originX, y: originY)
+                    window.setFrameOrigin(origin)
+                }
             }
+        }
+    }
+
+    private func startWindowSizeObserver() {
+        if let observer = windowObserver {
+            NotificationCenter.default.removeObserver(observer)
+            windowObserver = nil
+        }
+        let saveHandler: (Notification) -> Void = { _ in
+            guard let window = NSApp.windows.first else { return }
+            let size = window.frame.size
+            let origin = window.frame.origin
+            UserDefaults.standard.set(size.width, forKey: windowWidthKey)
+            UserDefaults.standard.set(size.height, forKey: windowHeightKey)
+            UserDefaults.standard.set(origin.x, forKey: windowOriginXKey)
+            UserDefaults.standard.set(origin.y, forKey: windowOriginYKey)
+        }
+
+        windowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResizeNotification,
+            object: nil,
+            queue: .main,
+            using: saveHandler
+        )
+
+        windowMoveObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: nil,
+            queue: .main,
+            using: saveHandler
+        )
+    }
+
+    private func stopWindowSizeObserver() {
+        if let observer = windowObserver {
+            NotificationCenter.default.removeObserver(observer)
+            windowObserver = nil
+        }
+        if let observer = windowMoveObserver {
+            NotificationCenter.default.removeObserver(observer)
+            windowMoveObserver = nil
         }
     }
 }
