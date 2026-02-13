@@ -3,3 +3,4 @@
 *.pxd
 *.png
 *.sh
+!screenshot.png
