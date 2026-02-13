@@ -1,2 +1,5 @@
 **/*.pxd
 **/*.png
+*.pxd
+*.png
+*.sh
