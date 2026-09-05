@@ -3,4 +3,6 @@
 *.pxd
 *.png
 *.sh
+*.dmg
+landing.html
 !screenshot.png
