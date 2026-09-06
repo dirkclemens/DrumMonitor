@@ -49,7 +49,7 @@ DrumMonitor is a macOS SwiftUI app for MIDI drum timing practice. It listens to 
 
 ### Prebuilt DMG
 
-A ready-to-run build is available as `DrumMonitor-1.0.dmg` (ad-hoc signed, Apple Silicon only). Since it isn't notarized by Apple, macOS blocks it on first launch. Remove the quarantine flag before opening:
+A ready-to-run build is available as `DrumMonitor.dmg` (ad-hoc signed, Apple Silicon only). Since it isn't notarized by Apple, macOS blocks it on first launch. Remove the quarantine flag before opening:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/DrumMonitor.app
